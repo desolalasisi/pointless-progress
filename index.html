@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>POINT/LESS — Process</title>
+<meta name="description" content="How POINT/LESS, a 100-piece generative series, was made in collaboration with Claude: prompts, decisions and code.">
+<style>
+  :root {
+    --ink: #111111; --paper: #FFFFFF; --dust: #BFBCB8; --ash: #888888;
+    --red: #FF0000; --yellow: #FFAA00; --code-bg: #111111; --code-fg: #EDEAE4;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { background: var(--paper); color: var(--ink); font-family: 'Courier New', Courier, monospace; font-size: 15px; line-height: 1.65; }
+  a { color: inherit; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 0 20px; }
+  section { padding: 56px 0; border-top: 1px solid var(--ink); }
+  .eyebrow { font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--ash); margin-bottom: 14px; }
+  h1 { font-size: clamp(34px, 8vw, 72px); line-height: 1.02; letter-spacing: -.02em; font-weight: 700; }
+  h1 .slash { color: var(--red); }
+  h2 { font-size: clamp(22px, 4.5vw, 32px); line-height: 1.15; margin-bottom: 18px; letter-spacing: -.01em; }
+  h3 { font-size: 16px; margin-bottom: 8px; letter-spacing: .02em; }
+  p { margin-bottom: 14px; max-width: 64ch; }
+  .lede { font-size: clamp(16px, 2.6vw, 20px); max-width: 52ch; margin-top: 22px; }
+  header { padding: 64px 0 48px; }
+  .facts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 28px; }
+  .chip { border: 1px solid var(--ink); padding: 4px 10px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+  .chip.r { border-color: var(--red); color: var(--red); }
+  .chip.y { background: var(--yellow); border-color: var(--yellow); }
+
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .box { border: 1px solid var(--ink); padding: 20px; }
+  .box ul { list-style: none; }
+  .box li { padding: 6px 0; border-bottom: 1px dashed var(--dust); }
+  .box li:last-child { border-bottom: 0; }
+  .tag { display: inline-block; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; padding: 2px 8px; margin-bottom: 10px; background: var(--ink); color: var(--paper); }
+  .tag.c { background: var(--red); }
+
+  /* workflow steps */
+  .step { display: grid; grid-template-columns: 64px 1fr; gap: 18px; padding: 30px 0; border-top: 1px dashed var(--dust); }
+  .step:first-of-type { border-top: 0; }
+  .num { font-size: 34px; font-weight: 700; color: var(--red); line-height: 1; }
+  .step.y .num { color: var(--yellow); }
+  .prompt { border-left: 4px solid var(--ink); padding: 8px 0 8px 14px; margin: 12px 0; background: #F6F4F0; padding-right: 14px; }
+  .prompt small, .result small { display: block; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--ash); margin-bottom: 2px; }
+  .result { border-left: 4px solid var(--red); padding: 8px 0 8px 14px; margin: 12px 0; }
+  .step.y .result { border-left-color: var(--yellow); }
+
+  /* code "screenshots" */
+  .code { background: var(--code-bg); color: var(--code-fg); margin: 18px 0 8px; border: 1px solid var(--ink); }
+  .code .bar { display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-bottom: 1px solid #333; font-size: 11px; color: #A8A49C; letter-spacing: .06em; }
+  .code .dot { width: 9px; height: 9px; border-radius: 50%; background: #444; }
+  .code .dot:nth-child(1) { background: var(--red); }
+  .code .dot:nth-child(2) { background: var(--yellow); }
+  .code .bar span.f { margin-left: 8px; }
+  .code pre { padding: 14px 16px; overflow-x: auto; font-size: 12.5px; line-height: 1.6; tab-size: 2; -webkit-overflow-scrolling: touch; }
+  .code code { font-family: inherit; }
+  .k { color: #FF7A7A; } .s { color: #FFC24D; } .c { color: #7C7870; font-style: italic; } .n { color: #9ED0FF; } .f { color: #FFFFFF; font-weight: 700; }
+  .cap { font-size: 12.5px; color: #555; margin-bottom: 24px; max-width: 70ch; }
+  .cap b { color: var(--ink); }
+
+  .gallery { display: grid; grid-template-columns: 1fr; gap: 8px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th, td { text-align: left; padding: 10px 12px; border: 1px solid var(--ink); vertical-align: top; }
+  th { background: var(--ink); color: var(--paper); font-weight: 400; letter-spacing: .1em; text-transform: uppercase; font-size: 11px; }
+
+  .loop { display: flex; flex-wrap: wrap; gap: 0; margin: 22px 0 6px; }
+  .loop div { flex: 1 1 140px; border: 1px solid var(--ink); margin: -1px 0 0 -1px; padding: 14px; font-size: 13px; }
+  .loop div b { display: block; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--red); margin-bottom: 4px; }
+
+  footer { border-top: 1px solid var(--ink); padding: 32px 0 60px; font-size: 12.5px; color: #555; }
+
+  @media (max-width: 680px) {
+    .two { grid-template-columns: 1fr; }
+    .step { grid-template-columns: 1fr; gap: 6px; }
+    .num { font-size: 26px; }
+    section { padding: 40px 0; }
+    th, td { padding: 8px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="eyebrow">Process · Case study</div>
+    <h1>POINT<span class="slash">/</span>LESS<br>how it was made</h1>
+    <p class="lede">A hundred generative pieces, made for the sake of making. This page shows how the series was built in conversation with Claude: the prompts, the decisions, and the code that came out of them.</p>
+    <div class="facts">
+      <span class="chip">Freedom to Create</span>
+      <span class="chip">100 pieces · 1/1</span>
+      <span class="chip">p5.js 1.9.0</span>
+      <span class="chip r">Blind mint · Transient.xyz</span>
+      <span class="chip y">Generative art · 2027</span>
+    </div>
+  </div>
+</header>
+
+<!-- 01 -->
+<section>
+  <div class="wrap">
+    <div class="eyebrow">01 · Division of labour</div>
+    <h2>Who did what</h2>
+    <p>The work is a collaboration in a literal sense. The direction, taste and every keep-or-discard decision are mine. Claude writes and revises the code, and I test it on my phone and laptop and respond.</p>
+    <div class="two">
+      <div class="box">
+        <span class="tag">Desola</span>
+        <ul>
+          <li>The idea: art with no purpose, made for the sake of making</li>
+          <li>The vocabulary: scribbles, brush strokes, ink marks, shapes</li>
+          <li>The palette: white, black, red #FF0000, yellow #FFAA00</li>
+          <li>The rule: marks must look like a person made them, not like randomness</li>
+          <li>Curating the 100 seeds that get minted</li>
+          <li>Naming, the rename to POINT/LESS, the mint plan</li>
+        </ul>
+      </div>
+      <div class="box">
+        <span class="tag c">Claude</span>
+        <ul>
+          <li>Translating a feeling ("hand-made") into rules a program can follow</li>
+          <li>The drawing engine: brush, pen, hatching, scribbles, splats</li>
+          <li>Seeded generation so each piece is reproducible</li>
+          <li>The studio tool: render, keep, review, export PNGs and seeds</li>
+          <li>The live page that replays the minted pieces</li>
+          <li>Motifs: flowers, animals, faces, landscape</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 02 -->
+<section>
+  <div class="wrap">
+    <div class="eyebrow">02 · Prompting workflow</div>
+    <h2>From a loose idea to a mintable edition</h2>
+    <p>Each stage followed the same loop. I describe what I want in plain language, Claude returns a working file, I run it on my phone and laptop, and I answer with what feels wrong or missing.</p>
+    <div class="loop">
+      <div><b>1 · Brief</b>Plain-language description of the feeling</div>
+      <div><b>2 · Build</b>Claude returns a standalone HTML file</div>
+      <div><b>3 · Test</b>I run it on my phone and laptop and press NEW many times</div>
+      <div><b>4 · React</b>"Too tidy", "more brush", "add flowers"</div>
+      <div><b>5 · Lock</b>A decision is made and written down</div>
+    </div>
+
+    <!-- NOTE: prompts below are paraphrased from the project history. Swap in your verbatim prompts if you want exact quotes. -->
+
+    <div class="step">
+      <div class="num">01</div>
+      <div>
+        <h3>Start with a feeling, not a spec</h3>
+        <div class="prompt"><small>Prompt (paraphrased)</small>I want a generative series that's pointless, made purely for the sake of making. Scribbles, brush strokes, random shapes.</div>
+        <div class="result"><small>Outcome</small>The brief became "hand-feeling marks". Not pure randomness, but marks with pressure, tremor and hesitation. The palette was fixed from the start.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="num">02</div>
+      <div>
+        <h3>Make the machine behave like a hand</h3>
+        <div class="prompt"><small>Prompt (paraphrased)</small>It should look like a person made it. Brush strokes, lines and ink marks. Collectors should be able to watch each piece being drawn, and it has to work on a touch screen.</div>
+        <div class="result"><small>Outcome</small>A brush made of individual bristles that run dry, pen lines with pressure, deliberate sloppiness, and gestures that get abandoned halfway.</div>
+        <div class="code">
+          <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="f">pointless_studio.html · drawBrushSegment()</span></div>
+<pre><code><span class="k">function</span> <span class="f">drawBrushSegment</span>(s, i) {
+  <span class="k">let</span> a = s.pts[i - <span class="n">1</span>], b = s.pts[i];
+  <span class="f">strokeCap</span>(SQUARE);
+  <span class="k">for</span> (<span class="k">let</span> br <span class="k">of</span> s.bristles) {
+    <span class="k">if</span> (b.t &gt; br.end) <span class="k">continue</span>;          <span class="c">// edge bristles run out first</span>
+    <span class="k">let</span> gapLimit = br.dry * (<span class="n">0.15</span> + b.t * <span class="n">1.7</span>);
+    <span class="k">if</span> (<span class="f">noise</span>(br.ph, i * <span class="n">0.07</span>) &lt; gapLimit) <span class="k">continue</span>; <span class="c">// gaps open as the brush dries</span>
+    <span class="k">let</span> o1 = br.o * s.w * a.p;
+    <span class="k">let</span> o2 = br.o * s.w * b.p;
+    <span class="f">stroke</span>(br.c);
+    <span class="f">strokeWeight</span>(br.th * (<span class="n">0.55</span> + <span class="n">0.45</span> * b.p));
+    <span class="f">line</span>(a.x - <span class="f">sin</span>(a.a) * o1, a.y + <span class="f">cos</span>(a.a) * o1,
+         b.x - <span class="f">sin</span>(b.a) * o2, b.y + <span class="f">cos</span>(b.a) * o2);
+  }
+}</code></pre>
+        </div>
+        <p class="cap"><b>What this does:</b> each stroke is a bundle of thin lines instead of one fat one. Drop-out as the stroke progresses is what makes it read as paint rather than a vector line.</p>
+
+        <div class="code">
+          <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="f">pointless_studio.html · maybeAbandon()</span></div>
+<pre><code><span class="c">// 1 in 5 gestures gets abandoned halfway</span>
+<span class="k">function</span> <span class="f">maybeAbandon</span>(pts) {
+  <span class="k">if</span> (<span class="f">random</span>() &lt; <span class="n">0.2</span>)
+    <span class="k">return</span> pts.<span class="f">slice</span>(<span class="n">0</span>, <span class="f">max</span>(<span class="n">4</span>, <span class="f">floor</span>(pts.length * <span class="f">random</span>(<span class="n">0.45</span>, <span class="n">0.85</span>))));
+  <span class="k">return</span> pts;
+}</code></pre>
+        </div>
+        <p class="cap"><b>What this does:</b> a human hesitates, stops and moves on. A single line of code carries that behaviour.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="num">03</div>
+      <div>
+        <h3>Lock the palette, keep the odds loose</h3>
+        <div class="prompt"><small>Prompt (paraphrased)</small>White, black, red #FF0000 and yellow #FFAA00 only. I don't want the colours evenly spread. Some marks should mostly be black, with red and yellow arriving as accents.</div>
+        <div class="result"><small>Outcome</small>Colour is chosen per kind of mark, with different odds for each. Yellow is blocked from thin lines because it disappears on white.</div>
+        <div class="code">
+          <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="f">pointless_studio.html · palette</span></div>
+<pre><code><span class="k">const</span> COL = {
+  black:  <span class="s">'#111111'</span>,
+  white:  <span class="s">'#FFFFFF'</span>,
+  red:    <span class="s">'#FF0000'</span>,
+  yellow: <span class="s">'#FFAA00'</span>,
+};
+
+<span class="k">const</span> ROLE_MIX = {
+  brush:   { black: <span class="n">0.55</span>, red: <span class="n">0.20</span>, yellow: <span class="n">0.25</span> },
+  ink:     { black: <span class="n">0.85</span>, red: <span class="n">0.15</span> },
+  hatch:   { black: <span class="n">0.70</span>, red: <span class="n">0.30</span> },
+  splat:   { black: <span class="n">0.70</span>, red: <span class="n">0.20</span>, yellow: <span class="n">0.10</span> },
+};
+<span class="k">const</span> THIN_ROLES = [<span class="s">'outline'</span>, <span class="s">'ink'</span>, <span class="s">'scribble'</span>, <span class="s">'hatch'</span>, <span class="s">'loops'</span>, <span class="s">'mark'</span>]; <span class="c">// yellow is too faint here</span></code></pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="step y">
+      <div class="num">04</div>
+      <div>
+        <h3>Two versions: one to curate, one to show</h3>
+        <div class="prompt"><small>Prompt (paraphrased)</small>I need to save each piece as a PNG so collectors can mint, but I also want collectors to watch pieces being drawn on my site. Can that be two versions?</div>
+        <div class="result"><small>Outcome</small>A <b>studio</b> that renders instantly at export size and lets me keep and review seeds, and a <b>live</b> page that only replays the minted seeds, with no saving. The live page became a window into the 100.</div>
+        <div class="code">
+          <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="f">pointless_studio.html · seeded pieces</span></div>
+<pre><code><span class="k">function</span> <span class="f">startPiece</span>(s) {
+  seed = s;
+  <span class="f">randomSeed</span>(seed);          <span class="c">// same seed → same piece, every time</span>
+  <span class="f">noiseSeed</span>(seed);
+  pieceAccent = <span class="f">random</span>() &lt; <span class="n">0.5</span> ? COL.red : COL.yellow;
+  <span class="f">paintPaper</span>();
+  <span class="f">buildGestures</span>();
+  ...
+}
+
+<span class="k">function</span> <span class="f">renderPiece</span>(s) {
+  <span class="f">startPiece</span>(s);
+  <span class="f">fastForward</span>();   <span class="c">// studio: no animation, whole piece drawn at once</span>
+  <span class="f">noLoop</span>();
+  <span class="f">refreshUI</span>();
+}</code></pre>
+        </div>
+        <p class="cap"><b>Why it matters:</b> because every piece comes from a number, a minted piece can be reproduced exactly. The live page and the PNG on-chain are the same artwork.</p>
+      </div>
+    </div>
+
+    <div class="step y">
+      <div class="num">05</div>
+      <div>
+        <h3>Curate 100, then freeze the engine</h3>
+        <div class="prompt"><small>Prompt (paraphrased)</small>I want to keep the ones I like, step through them, number them, and export the list so I can paste it into the live page.</div>
+        <div class="result"><small>Outcome</small>KEEP and REVIEW buttons, numbered PNG export, and a seed list file. The engine version is stamped so nobody changes the drawing code after minting by accident.</div>
+        <div class="code">
+          <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="f">pointless_studio.html · exportList()</span></div>
+<pre><code><span class="k">const</span> ENGINE_VERSION = <span class="s">'POINTLESS-ENGINE-3'</span>;
+<span class="k">const</span> EDITION_SIZE = <span class="n">100</span>;
+<span class="k">const</span> EXPORT_DENSITY = <span class="n">2</span>;   <span class="c">// 2 → 1800 × 2250 px</span>
+
+<span class="k">async function</span> <span class="f">exportList</span>() {
+  <span class="k">let</span> js = <span class="s">'// engine '</span> + ENGINE_VERSION +
+           <span class="s">'\nconst MINTED_SEEDS = ['</span> + kept.<span class="f">join</span>(<span class="s">', '</span>) + <span class="s">'];\n'</span>;
+  <span class="k">let</span> meta = {
+    series: <span class="s">'POINTLESS'</span>, engine: ENGINE_VERSION,
+    count: kept.length,
+    pieces: kept.<span class="f">map</span>((s, i) =&gt; ({ number: i + <span class="n">1</span>, seed: s, file: <span class="f">fileNameFor</span>(s, i + <span class="n">1</span>) })),
+  };
+  <span class="f">downloadBlob</span>(<span class="k">new</span> Blob([js]), <span class="s">'minted_seeds.js'</span>);
+  <span class="f">downloadBlob</span>(<span class="k">new</span> Blob([JSON.<span class="f">stringify</span>(meta, <span class="k">null</span>, <span class="n">2</span>)]), <span class="s">'pointless_metadata.json'</span>);
+}</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="num">06</div>
+      <div>
+        <h3>Let subjects in without losing the hand</h3>
+        <div class="prompt"><small>Prompt (paraphrased)</small>Introduce other elements into the pieces: portraits, flowers, animals, nature, silhouettes. Not only abstract marks.</div>
+        <div class="result"><small>Outcome</small>Motifs drawn with the same careless hand. They are generated <i>after</i> all the original marks, so turning them off reproduces the old pieces exactly.</div>
+        <div class="code">
+          <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="f">pointless_studio.html · motifs</span></div>
+<pre><code><span class="k">const</span> MOTIFS_ON = <span class="k">true</span>;   <span class="c">// false = identical to engine 2</span>
+<span class="k">const</span> MOTIF_MIN = <span class="n">1</span>, MOTIF_MAX = <span class="n">3</span>;
+<span class="k">const</span> MOTIF_WEIGHTS = {
+  flower: <span class="n">3</span>, tulip: <span class="n">2</span>, branch: <span class="n">2</span>, tree: <span class="n">1</span>, butterfly: <span class="n">1</span>,   <span class="c">// plants</span>
+  bird: <span class="n">2</span>, fish: <span class="n">1</span>, cat: <span class="n">1</span>, hare: <span class="n">1</span>,                         <span class="c">// animals</span>
+  face: <span class="n">3</span>, profile: <span class="n">2</span>, bust: <span class="n">2</span>, figure: <span class="n">1</span>, eye: <span class="n">1</span>,          <span class="c">// people</span>
+  sun: <span class="n">1</span>, moon: <span class="n">1</span>, mountains: <span class="n">1</span>, vine: <span class="n">1</span>, bloom: <span class="n">3</span>,       <span class="c">// sky &amp; land</span>
+};
+
+<span class="c">// generated AFTER every original gesture, so old seeds keep their marks</span>
+<span class="k">if</span> (MOTIFS_ON) <span class="f">buildMotifs</span>(add);</code></pre>
+        </div>
+        <p class="cap"><b>Design decision:</b> an additive layer rather than a rewrite. Existing seeds stay valid and the new material can be switched on or off per piece type.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 03 -->
+<section>
+  <div class="wrap">
+    <div class="eyebrow">03 · Decision log</div>
+    <h2>The choices that shaped the series</h2>
+    <table>
+      <thead><tr><th>Decision</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td>Marks follow rules of a hand, not pure random</td><td>Pressure, tremor, dry brush and abandoned gestures make it read as a person's work.</td></tr>
+        <tr><td>Four-colour palette, per-mark odds</td><td>Keeps the series cohesive and stops yellow vanishing on white.</td></tr>
+        <tr><td>Seeds instead of stored images</td><td>Each piece is reproducible, so the live page and the minted PNG are the same work.</td></tr>
+        <tr><td>Studio and live as separate files</td><td>Curating and saving is a private tool; the public page is a window onto the 100.</td></tr>
+        <tr><td>Engine version stamped</td><td>Any change to drawing code after minting would change every seed.</td></tr>
+        <tr><td>Motifs as an additive layer</td><td>New subjects without breaking earlier pieces.</td></tr>
+        <tr><td>Rename to POINT/LESS (Oct 2026)</td><td>The message stays the same; the identity and promo set are reworked around it.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- 04 -->
+<section>
+  <div class="wrap">
+    <div class="eyebrow">04 · Stack</div>
+    <h2>What it runs on</h2>
+    <div class="two">
+      <div class="box">
+        <ul>
+          <li><b>Language:</b> JavaScript</li>
+          <li><b>Library:</b> p5.js 1.9.0, 2D canvas</li>
+          <li><b>Randomness:</b> randomSeed + noiseSeed</li>
+          <li><b>Canvas:</b> 900 × 1125, exported at 2× (1800 × 2250 px)</li>
+        </ul>
+      </div>
+      <div class="box">
+        <ul>
+          <li><b>Delivery:</b> standalone HTML files</li>
+          <li><b>Edition:</b> 100 × 1/1, blind mint on Transient.xyz</li>
+          <li><b>Built on:</b> a laptop, in conversation</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    POINT/LESS · Freedom to Create · Desola Lasisi · Made with Claude (Anthropic)
+  </div>
+</footer>
+
+</body>
+</html>
